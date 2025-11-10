@@ -299,7 +299,7 @@ proc UpdateBottomInvadersLocation
 @@reverseDirectionGoDown_B: 
     xor [byte ptr BottomInvadersMoveRightBool], 1  
     mov [byte ptr BottomInvadersMovesToSideDone], 0  
-    add [word ptr BottomInvadersPrintStartLine], 4 
+    sub [word ptr BottomInvadersPrintStartLine], 4 
     
 @@procEnd_B: 
     ret

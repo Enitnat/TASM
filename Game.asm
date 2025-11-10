@@ -60,7 +60,7 @@ include "Strings.asm"
 
 	BottomInvadersLoopMoveCounter  db  ?
 
-	ShooterLineLocation				equ 149
+	ShooterLineLocation				equ 90
 	ShooterRowLocation				dw	?
 
 	ShootingLength					equ	2
@@ -69,6 +69,8 @@ include "Strings.asm"
 	PlayerShootingExists			db	?
 	PlayerShootingLineLocation		dw	?
 	PlayerShootingRowLocation		dw	?
+	
+	PlayerDirection             db  1
 
 	InvadersShootingMaxAmount		db	?
 	InvadersShootingCurrentAmount	db	?
@@ -259,10 +261,15 @@ proc MoveToStart
     mov [byte ptr BottomInvadersMoveRightBool], 0  ; 0 = move LEFT
     mov [byte ptr BottomInvadersMovesToSideDone], 0
     mov [byte ptr BottomInvadersLoopMoveCounter], 0
-    mov [word ptr BottomInvadersPrintStartLine], 125 ; Start at line 100
+    mov [word ptr BottomInvadersPrintStartLine], 140   ; Start at line 100
     mov [word ptr BottomInvadersPrintStartRow], 280  ; Start on the right side
+	
+	mov [word ptr ShooterRowLocation], 152 ; <-- This value centers the player horizontally
+    mov [byte ptr PlayerShootingExists], 0
 
-	mov [word ptr ShooterRowLocation], 152
+	mov [word ptr ShooterLineLocation], 90
+    mov [byte ptr PlayerDirection], 1
+
 	mov [byte ptr PlayerShootingExists], 0
 
 	mov [byte ptr InvadersShootingCurrentAmount], 0
@@ -354,53 +361,56 @@ endp InitializeGame
 
 ; ------------------------------------------------
 ; Checking if player had died from invaders' shots
-; If no, returned ax = 0, if yes, ax = 1
-; Ben Raz
+; TIGHTENED COLLISION BOX to match sprite dimensions (approx 16x16)
 ; ------------------------------------------------
 proc CheckIfPlayerDied
-	xor ch, ch
-	mov cl, [InvadersShootingCurrentAmount]
-	cmp cx, 0
-	je @@returnZero
+    xor ch, ch
+    mov cl, [InvadersShootingCurrentAmount]
+    cmp cx, 0
+    je @@returnZero
 
-	xor si, si
+    xor si, si
 
 @@checkShot:
-	;check from above:
-	mov ax, ShooterLineLocation
-	sub ax, 3
-	cmp ax, [InvadersShootingLineLocations + si]
-	ja @@checkNextShot
+    ;--- VERTICAL (LINE) CHECK ---
+    
+    ; 1. Check from above (Top boundary of the ship)
+    mov ax, ShooterLineLocation
+    ; WAS: sub ax, 3  <-- REMOVED PADDING
+    cmp ax, [InvadersShootingLineLocations + si] ; Check if shot is BELOW the player's top edge
+    ja @@checkNextShot
 
-	;check from below:
-	add ax, 3
-	add ax, 16 ;height
-	cmp ax, [InvadersShootingLineLocations + si]
-	jb @@checkNextShot
+    ; 2. Check from below (Bottom boundary of the ship)
+    ; WAS: add ax, 3  <-- REMOVED PADDING
+    add ax, 16       ; Use actual height (ShooterHeight equ 16)
+    cmp ax, [InvadersShootingLineLocations + si] ; Check if shot is ABOVE the player's bottom edge
+    jb @@checkNextShot
 
-	;check from left
-	mov ax, [ShooterRowLocation]
-	dec ax
-	cmp ax, [InvadersShootingRowLocations + si]
-	ja @@checkNextShot
+    ;--- HORIZONTAL (ROW) CHECK ---
+    
+    ; 3. Check from left (Left boundary of the ship)
+    mov ax, [ShooterRowLocation]
+    ; WAS: dec ax   <-- REMOVED PADDING
+    cmp ax, [InvadersShootingRowLocations + si] ; Check if shot is RIGHT of the player's left edge
+    ja @@checkNextShot
 
-	;check from right:
-	add ax, 16 ;length
-	cmp ax, [InvadersShootingRowLocations + si]
-	jb @@checkNextShot
+    ; 4. Check from right (Right boundary of the ship)
+    add ax, 16 ; Use actual length (ShooterLength equ 16)
+    cmp ax, [InvadersShootingRowLocations + si] ; Check if shot is LEFT of the player's right edge
+    jb @@checkNextShot
 
-	;Player killed:
-	mov ax, 1
-	ret
+    ;Player killed: (Collision detected)
+    mov ax, 1
+    ret
 
 @@checkNextShot:
-	inc si
-	loop @@checkShot
+    inc si
+    loop @@checkShot
 
 @@returnZero:
-	;Player not killed:
-	xor ax, ax 
-	ret
+    ;Player not killed:
+    xor ax, ax 
+    ret
 endp CheckIfPlayerDied
 
 
@@ -436,17 +446,20 @@ proc CheckIfTopReachedBottom
     jmp @@invadersDidNotReachBottom_T
 
 @@lineTwoNotEmpty_T:
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 59 ; <-- RENAMED
+    ; New Death Line Check: If the lowest line (2) is present, check if its start line is too low (i.e., Y > 50).
+    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 40 ; <-- NEW OFFSET: Check if Y > 50 (90 - 40 = 50)
     ja @@invadersReachedBottom_T
     jmp @@invadersDidNotReachBottom_T
 
 @@lineOneNotEmpty_T:
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 39 ; <-- RENAMED
+    ; New Death Line Check: If middle line (1) is present, check if Y > 70.
+    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 20 ; <-- NEW OFFSET: Check if Y > 70 (90 - 20 = 70)
     ja @@invadersReachedBottom_T
     jmp @@invadersDidNotReachBottom_T
 
 @@lineZeroNotEmpty_T:
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 19 ; <-- RENAMED
+    ; New Death Line Check: If highest line (0) is present, check if Y > 85 (very close).
+    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 5  ; <-- NEW OFFSET: Check if Y > 85 (90 - 5 = 85)
     ja @@invadersReachedBottom_T
 
 @@invadersDidNotReachBottom_T:
@@ -490,18 +503,21 @@ proc CheckIfBottomReachedBottom
     jmp @@invadersDidNotReachBottom_B
 
 @@lineTwoNotEmpty_B:
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation - 59 ; <-- USES BOTTOM VARS
-    ja @@invadersReachedBottom_B
+    ; Lowest visible line of bottom block (line 2)
+    ; Bottom block moves upward (Y decreases)
+    ; Lose if it passes ShooterLineLocation + 30
+    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 30
+    jb @@invadersReachedBottom_B
     jmp @@invadersDidNotReachBottom_B
 
 @@lineOneNotEmpty_B:
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation - 39 ; <-- USES BOTTOM VARS
-    ja @@invadersReachedBottom_B
+    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 20
+    jb @@invadersReachedBottom_B
     jmp @@invadersDidNotReachBottom_B
 
 @@lineZeroNotEmpty_B:
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation - 19 ; <-- USES BOTTOM VARS
-    ja @@invadersReachedBottom_B
+    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 35
+    jb @@invadersReachedBottom_B
 
 @@invadersDidNotReachBottom_B:
     xor ax, ax
@@ -630,7 +646,7 @@ proc PlayGame
 
 @@checkRight:
 	cmp ah, 4Dh
-	jne @@readKey
+	jne @@checkUp
 
 	cmp [word ptr ShooterRowLocation], 290
 	ja @@clearShot
@@ -645,6 +661,20 @@ proc PlayGame
 
 	add [word ptr ShooterRowLocation], 10
 
+@@checkUp: ; <--- NEW LABEL
+    cmp ah, 48h  ; Up Key (Scancode 48h)
+    jne @@checkDown
+
+    mov [byte ptr PlayerDirection], 1 
+    jmp @@clearShot                   
+
+@@checkDown: ; <--- NEW LABEL
+    cmp ah, 50h 
+    jne @@readKey
+
+    mov [byte ptr PlayerDirection], 0 
+    jmp @@clearShot                   
+
 @@printAgain:
 	push [ShooterFileHandle]
 	push ShooterLength
@@ -657,14 +687,14 @@ proc PlayGame
 @@checkShotStatus:
 	;Check if shooting already exists in screen:
 	cmp [byte ptr PlayerShootingExists], 0
-	jne @@moveShootingUp
+	jne @@moveShooting
 
 	jmp @@clearShot
 
 @@shootPressed:
 	;Check if shooting already exists in screen:
 	cmp [byte ptr PlayerShootingExists], 0
-	jne @@moveShootingUp
+	jne @@moveShooting
 
 @@initiateShot:
 	;Set initial shot location:
@@ -678,11 +708,24 @@ proc PlayGame
 	mov [byte ptr PlayerShootingExists], 1
 	jmp @@printShooting
 
-@@moveShootingUp:
-	cmp [word ptr PlayerShootingLineLocation], 10
-	jb @@removeShot
+@@moveShooting:
+	; Check if shot reached top or bottom boundary (10 or StatsAreaBorderLine)
+    cmp [byte ptr PlayerDirection], 1 ; Check if direction is UP
+    je @@checkBoundaryUp
 
-	sub [word ptr PlayerShootingLineLocation], 10
+    ; Direction is DOWN
+    cmp [word ptr PlayerShootingLineLocation], StatsAreaBorderLine - 6 ; Check against stat bar (or slightly above)
+    ja @@removeShot ; If below boundary, remove shot
+
+    add [word ptr PlayerShootingLineLocation], 10 ; Move DOWN 10 pixels
+    jmp @@printShooting
+
+@@checkBoundaryUp:
+    cmp [word ptr PlayerShootingLineLocation], 10 
+    jb @@removeShot 
+
+    sub [word ptr PlayerShootingLineLocation], 10 
+
 
 @@printShooting:
 	push ShootingLength
