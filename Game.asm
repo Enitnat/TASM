@@ -47,7 +47,7 @@ include "Strings.asm"
 	TopInvadersPrintStartLine			dw	?
 	TopInvadersPrintStartRow			dw	?
 	TopInvadersLeftAmount				db	?
-	TopInvadersStatusArray				db	24 dup (?)
+	TopInvadersStatusArray				db	8 dup (?)
 
 		TopInvadersLoopMoveCounter	  	db	?
 
@@ -56,7 +56,7 @@ include "Strings.asm"
 	BottomInvadersPrintStartLine   dw  ?
 	BottomInvadersPrintStartRow    dw  ?
 	BottomInvadersLeftAmount       db  ?
-	BottomInvadersStatusArray      db  24 dup (?)
+	BottomInvadersStatusArray      db  8 dup (?)
 
 	BottomInvadersLoopMoveCounter  db  ?
 
@@ -298,8 +298,8 @@ endp MoveToStart
 ; Ben Raz
 ; ------------------------------------------------------------
 proc InitializeLevel
-	mov [TopInvadersLeftAmount], 24         
-    mov [BottomInvadersLeftAmount], 24
+	mov [TopInvadersLeftAmount], 8         
+    mov [BottomInvadersLeftAmount], 8
 
 	cmp [byte ptr Level], 1
 	jne @@checkLevelTwo
@@ -329,13 +329,13 @@ proc InitializeLevel
 
 	;Set all TOP invaders as 'active':
     mov di, offset TopInvadersStatusArray
-    mov cx, 24
+    mov cx, 8
     mov al, 1
     rep stosb
 
     ;Set all BOTTOM invaders as 'active':     ; <<< NEW BLOCK
     mov di, offset BottomInvadersStatusArray
-    mov cx, 24
+    mov cx, 8
     mov al, 1
     rep stosb
 
@@ -417,25 +417,7 @@ endp CheckIfPlayerDied
 
 proc CheckIfTopReachedBottom
     mov cx, 8
-    mov bx, 16
-
-@@checkLineTwo_T:
-    cmp [TopInvadersStatusArray + bx], 0  ; <-- RENAMED
-    jne @@lineTwoNotEmpty_T
-    inc bx
-    loop @@checkLineTwo_T
-
-    mov cx, 8
-    mov bx, 8
-
-@@checkLineOne_T:
-    cmp [TopInvadersStatusArray + bx], 0  ; <-- RENAMED
-    jne @@lineOneNotEmpty_T
-    inc bx
-    loop @@checkLineOne_T
-
-    mov cx, 8
-    xor bx, bx
+    mov bx, bx
 
 @@checkLineZero_T:
     cmp [TopInvadersStatusArray + bx], 0  ; <-- RENAMED
@@ -445,21 +427,8 @@ proc CheckIfTopReachedBottom
 
     jmp @@invadersDidNotReachBottom_T
 
-@@lineTwoNotEmpty_T:
-    ; New Death Line Check: If the lowest line (2) is present, check if its start line is too low (i.e., Y > 50).
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 40 ; <-- NEW OFFSET: Check if Y > 50 (90 - 40 = 50)
-    ja @@invadersReachedBottom_T
-    jmp @@invadersDidNotReachBottom_T
-
-@@lineOneNotEmpty_T:
-    ; New Death Line Check: If middle line (1) is present, check if Y > 70.
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 20 ; <-- NEW OFFSET: Check if Y > 70 (90 - 20 = 70)
-    ja @@invadersReachedBottom_T
-    jmp @@invadersDidNotReachBottom_T
-
 @@lineZeroNotEmpty_T:
-    ; New Death Line Check: If highest line (0) is present, check if Y > 85 (very close).
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 5  ; <-- NEW OFFSET: Check if Y > 85 (90 - 5 = 85)
+    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 5
     ja @@invadersReachedBottom_T
 
 @@invadersDidNotReachBottom_T:
@@ -474,25 +443,7 @@ endp CheckIfTopReachedBottom
 ; <<< NEW PROCEDURE >>>
 proc CheckIfBottomReachedBottom
     mov cx, 8
-    mov bx, 16
-
-@@checkLineTwo_B:
-    cmp [BottomInvadersStatusArray + bx], 0  ; <-- USES BOTTOM VARS
-    jne @@lineTwoNotEmpty_B
-    inc bx
-    loop @@checkLineTwo_B
-
-    mov cx, 8
-    mov bx, 8
-
-@@checkLineOne_B:
-    cmp [BottomInvadersStatusArray + bx], 0  ; <-- USES BOTTOM VARS
-    jne @@lineOneNotEmpty_B
-    inc bx
-    loop @@checkLineOne_B
-
-    mov cx, 8
-    xor bx, bx
+    mov bx, bx
 
 @@checkLineZero_B:
     cmp [BottomInvadersStatusArray + bx], 0  ; <-- USES BOTTOM VARS
@@ -502,18 +453,6 @@ proc CheckIfBottomReachedBottom
 
     jmp @@invadersDidNotReachBottom_B
 
-@@lineTwoNotEmpty_B:
-    ; Lowest visible line of bottom block (line 2)
-    ; Bottom block moves upward (Y decreases)
-    ; Lose if it passes ShooterLineLocation + 30
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 30
-    jb @@invadersReachedBottom_B
-    jmp @@invadersDidNotReachBottom_B
-
-@@lineOneNotEmpty_B:
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 20
-    jb @@invadersReachedBottom_B
-    jmp @@invadersDidNotReachBottom_B
 
 @@lineZeroNotEmpty_B:
     cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 35

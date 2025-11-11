@@ -13,7 +13,7 @@ proc PrintTopInvaders
 
     xor bx, bx ;current invader #
 
-    mov cx, 3
+    mov cx, 1
 @@printInvadersLine:
     push cx
 
@@ -71,7 +71,7 @@ proc PrintBottomInvaders
 
     xor bx, bx 
 
-    mov cx, 3
+    mov cx, 1
 @@printInvadersLine_B: 
     push cx
 
@@ -130,7 +130,7 @@ proc ClearTopInvaders
 
     xor bx, bx 
 
-    mov cx, 3
+    mov cx, 1
 @@printInvadersLine:
     push cx
 
@@ -194,7 +194,7 @@ proc ClearBottomInvaders
 
     xor bx, bx 
 
-    mov cx, 3
+    mov cx, 1
 @@printInvadersLine_CB:
     push cx
 
@@ -345,104 +345,120 @@ proc CheckAndMoveBottomInvaders
 endp CheckAndMoveBottomInvaders
 
 
-; -------------------------------------------------
-; Choosing a random invader to shoot
-; If not found after a few tries, no shot performed
-; Updating shot location, adding it to shots arrays
-; Ben Raz
-; -------------------------------------------------
 proc InvadersRandomShot
-	push bp
-	mov bp, sp
+    push bp
+    mov bp, sp
 
-	;Check if max reached:
-	mov al, [InvadersShootingCurrentAmount]
-	cmp [InvadersShootingMaxAmount], al
-	je @@procEnd
+    ; --- SAVE ALL WORKING REGISTERS (FIXES RENDERING) ---
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    ; ---------------------------------------------------
 
-	;Shoot only after invaders movement:
-	cmp [byte ptr TopInvadersLoopMoveCounter], 3
-	jne @@procEnd
+    ;Check if max reached:
+    mov al, [InvadersShootingCurrentAmount]
+    cmp [InvadersShootingMaxAmount], al
+    je @@procEnd
+
+    ;Shoot only after invaders movement:
+    ; --- FIX: Use TopInvaders... variable ---
+    cmp [byte ptr TopInvadersLoopMoveCounter], 3
+    jne @@procEnd
 
 
-	mov al, [InvadersShootingMaxAmount]
-	sub al, 2
-	cmp al, [InvadersShootingCurrentAmount]
-	ja @@shootRandomly
+    mov al, [InvadersShootingMaxAmount]
+    sub al, 2
+    cmp al, [InvadersShootingCurrentAmount]
+    ja @@shootRandomly
 
-	;Shoot or not, randomly:
-	;Chance of 3/4 to shoot
-	push 4
-	call Random
-	cmp ax, 0
-	je @@procEnd
+    ;Shoot or not, randomly:
+    ;Chance of 3/4 to shoot
+    push 4
+    call Random
+    cmp ax, 0
+    je @@procEnd
 
 @@shootRandomly:
-	sub sp, 2 ;create local variable counting fails
-	;address: bp - 2
-	mov [word ptr bp - 2], 0
+    ; --- This stack frame setup is from the OG code and is SAFE ---
+    sub sp, 2 ;create local variable counting fails
+    mov [word ptr bp - 2], 0
 
 @@getRandomInvader:
-	;Get a random invader
-	push 24
-	call Random
-	mov si, ax
+    ;Get a random invader
+    ; --- FIX: Change 24 (3 rows) to 8 (1 row) ---
+    push 8
+    call Random
+    mov si, ax
 
-	;Check if invader 'alive':
-	cmp [byte ptr TopInvadersStatusArray + si], 0
-	jne @@setShootingLocation
+    ;Check if invader 'alive':
+    ; --- FIX: Use TopInvaders... variable ---
+    cmp [byte ptr TopInvadersStatusArray + si], 0
+    jne @@setShootingLocation
 
-	inc [word ptr bp - 2]
+    inc [word ptr bp - 2]
 
-	cmp [word ptr bp - 2], 4
-	jne @@getRandomInvader
+    cmp [word ptr bp - 2], 4
+    jne @@getRandomInvader
 
-	add sp, 2 ;clear local variable
-	jmp @@procEnd
+    add sp, 2 ;clear local variable
+    jmp @@procEnd
 
 
 @@setShootingLocation:
-	add sp, 2 ;clear local variable
+    add sp, 2 ;clear local variable
 
-	mov bl, 8
-	div bl
+    ; --- LOGIC FOR 1 ROW ---
+    ; (The OG logic is fine, AX is 0-7, so DIV BL gives AL=0, AH=0-7)
+    mov bl, 8
+    div bl
 
-	;al = lines, ah = rows
-	push ax
+    ;al = lines (0), ah = rows (0-7)
+    push ax
 
-	mov dx, [TopInvadersPrintStartLine]
-	add dx, 15 ;set to buttom of first invader
+    ; --- FIX: Use TopInvaders... variable ---
+    mov dx, [TopInvadersPrintStartLine]
+    add dx, 15 ;set to buttom of first invader
 
-	;set correct line:
-	xor ah, ah
-	mov bl, 20
-	mul bl
+    ;set correct line:
+    xor ah, ah
+    mov bl, 20
+    mul bl    ; (AL is 0, so AX becomes 0, this is correct)
 
-	add dx, ax
-	mov bl, [InvadersShootingCurrentAmount]
-	xor bh, bh
-	shl bx, 1
-	mov [InvadersShootingLineLocations + bx], dx
+    add dx, ax
+    mov bl, [InvadersShootingCurrentAmount]
+    xor bh, bh
+    shl bx, 1
+    mov [word ptr InvadersShootingLineLocations + bx], dx ; Add 'word ptr'
 
+    pop ax
+    shr ax, 8 ;rows # in al (0-7)
+    mov bl, 35
+    mul bl
 
-	pop ax
-	shr ax, 8 ;rows # in al
-	mov bl, 35
-	mul bl
+    add ax, 10 ;set to middle of invader
+    ; --- FIX: Use TopInvaders... variable ---
+    add ax, [TopInvadersPrintStartRow]
 
-	add ax, 10 ;set to middle of invader
-	add ax, [TopInvadersPrintStartRow]
+    mov bl, [InvadersShootingCurrentAmount]
+    xor bh, bh
+    shl bx, 1
+    mov [word ptr InvadersShootingRowLocations + bx], ax ; Add 'word ptr'
 
-	mov bl, [InvadersShootingCurrentAmount]
-	xor bh, bh
-	shl bx, 1
-	mov [InvadersShootingRowLocations + bx], ax
-
-	inc [byte ptr InvadersShootingCurrentAmount]
+    inc [byte ptr InvadersShootingCurrentAmount]
 
 @@procEnd:
-	pop bp
-	ret
+    ; --- RESTORE ALL REGISTERS (reverse order) ---
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ; -------------------------------------------
+
+    pop bp
+    ret
 endp InvadersRandomShot
 
 
