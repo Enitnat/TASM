@@ -8,6 +8,10 @@ proc PrintTopInvaders
     ;line: bp - 2 (Y position)
     ;row: bp - 4 (X position)
 
+    push ax
+    push bx
+    push cx
+
     mov ax, [TopInvadersPrintStartLine] ; Correct: Load starting LINE (Y)
     mov [bp - 2], ax
 
@@ -57,6 +61,10 @@ proc PrintTopInvaders
 
     add sp, 4
 
+    pop cx
+    pop bx
+    pop ax
+
     pop bp
     ret
 endp PrintTopInvaders
@@ -65,6 +73,10 @@ proc PrintBottomInvaders
     push bp
     mov bp, sp
     sub sp, 4
+
+    push ax
+    push bx
+    push cx
 
     mov ax, [BottomInvadersPrintStartLine]
     mov [bp - 2], ax
@@ -114,6 +126,10 @@ proc PrintBottomInvaders
 
     add sp, 4
 
+    pop cx
+    pop bx
+    pop ax
+
     pop bp
     ret
 endp PrintBottomInvaders
@@ -124,6 +140,10 @@ proc ClearTopInvaders
     mov bp, sp
 
     sub sp, 4
+
+    push ax
+    push bx
+    push cx
 
     mov ax, [TopInvadersPrintStartLine]
     mov [bp - 2], ax
@@ -177,6 +197,10 @@ proc ClearTopInvaders
 
     add sp, 4
 
+    pop cx
+    pop bx
+    pop ax
+
     pop bp
     ret
 endp ClearTopInvaders
@@ -188,6 +212,9 @@ proc ClearBottomInvaders
 
     sub sp, 4
 
+    push ax
+    push bx
+    push cx
 
     mov ax, [BottomInvadersPrintStartLine] 
     mov [bp - 2], ax
@@ -240,6 +267,10 @@ proc ClearBottomInvaders
     loop @@printInvadersLine_CB 
 
     add sp, 4
+
+    pop cx
+    pop bx
+    pop ax
 
     pop bp
     ret
@@ -621,6 +652,11 @@ endp ClearInvadersShots
 ; Ben Raz
 ; ------------------------------------------------
 proc CheckAndKillTopInvader
+
+    push ax
+    push bx
+    push cx
+    push dx
     ;Check if invader killed:
     ;Check above:
     mov ah, 0Dh
@@ -810,10 +846,19 @@ proc CheckAndKillTopInvader
     call PrintColor
 
 @@procEnd_T: ; Renamed label
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 endp CheckAndKillTopInvader
 
 proc CheckAndKillBottomInvader
+    push ax
+    push bx
+    push cx
+    push dx
+
     ;Check if invader killed:
     ;Check above:
     mov ah, 0Dh
@@ -1003,5 +1048,9 @@ proc CheckAndKillBottomInvader
     call PrintColor
 
 @@procEnd_B: ; Renamed label
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 endp CheckAndKillBottomInvader
