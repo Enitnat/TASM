@@ -13,7 +13,7 @@ proc PrintTopInvaders
 
     xor bx, bx ;current invader #
 
-    mov cx, 2
+    mov cx, 3
 @@printInvadersLine:
     push cx
 
@@ -71,7 +71,7 @@ proc PrintBottomInvaders
 
     xor bx, bx 
 
-    mov cx, 2
+    mov cx, 3
 @@printInvadersLine_B: 
     push cx
 
@@ -130,7 +130,7 @@ proc ClearTopInvaders
 
     xor bx, bx 
 
-    mov cx, 2
+    mov cx, 3
 @@printInvadersLine:
     push cx
 
@@ -194,7 +194,7 @@ proc ClearBottomInvaders
 
     xor bx, bx 
 
-    mov cx, 2
+    mov cx, 3
 @@printInvadersLine_CB:
     push cx
 
@@ -351,233 +351,168 @@ endp CheckAndMoveBottomInvaders
 ; Updating shot location, adding it to shots arrays
 ; Ben Raz
 ; -------------------------------------------------
-; Invader.asm - proc InvadersRandomShot (DYNAMIC VERSION)
-
-; -------------------------------------------------
-; Modified to choose randomly between TOP and BOTTOM invader groups to shoot.
-; -------------------------------------------------
 proc InvadersRandomShot
-    push bp
-    mov bp, sp
-    
-    ; --- 1. CHOOSE GROUP (0 = TOP, 1 = BOTTOM) ---
-    push 2  
-    call Random             ; AX = 0 or 1
-    cmp ax, 0
-    je @@useTopBlock   
-    ; else, fall through to use Bottom Block
+	push bp
+	mov bp, sp
 
-@@useBottomBlock:
-    ; Check if BOTTOM block is empty
-    cmp [byte ptr BottomInvadersLeftAmount], 0
-    je @@useTopBlockIfPossible ; If empty, try the other block
+	;Check if max reached:
+	mov al, [InvadersShootingCurrentAmount]
+	cmp [InvadersShootingMaxAmount], al
+	je @@procEnd
 
-    mov si, offset BottomInvadersStatusArray        ; SI = Status Array Address
-    mov dx, [word ptr BottomInvadersPrintStartLine] ; DX = Start Line (Y)
-    mov bx, [word ptr BottomInvadersPrintStartRow]  ; BX = Start Row (X)
-    mov ch, [byte ptr BottomInvadersLoopMoveCounter] ; CH = Move Counter (for shoot timing)
-    jmp @@checkShootingConditions
+	;Shoot only after invaders movement:
+	cmp [byte ptr TopInvadersLoopMoveCounter], 3
+	jne @@procEnd
 
-@@useTopBlockIfPossible: ; If first choice (Bottom) was empty/failed, check Top
-    ; Check if TOP block is empty
-    cmp [byte ptr TopInvadersLeftAmount], 0
-    je @@procEnd_NoShot ; If Top is also empty, end proc
 
-@@useTopBlock:
-    mov si, offset TopInvadersStatusArray           ; SI = Status Array Address
-    mov dx, [word ptr TopInvadersPrintStartLine]    ; DX = Start Line (Y)
-    mov bx, [word ptr TopInvadersPrintStartRow]     ; BX = Start Row (X)
-    mov ch, [byte ptr TopInvadersLoopMoveCounter]   ; CH = Move Counter (for shoot timing)
+	mov al, [InvadersShootingMaxAmount]
+	sub al, 2
+	cmp al, [InvadersShootingCurrentAmount]
+	ja @@shootRandomly
 
-@@checkShootingConditions:
-    ; Check if max shooting capacity reached:
-    mov al, [InvadersShootingCurrentAmount]
-    cmp [InvadersShootingMaxAmount], al
-    je @@procEnd_NoShot
-
-    ; Shoot only after invaders movement (check the saved counter CH):
-    cmp ch, 3
-    jne @@procEnd_NoShot
-    
-    ; --- 2. RANDOM SHOT CHANCE (Original Logic) ---
-    mov al, [InvadersShootingMaxAmount]
-    sub al, 2
-    cmp al, [InvadersShootingCurrentAmount]
-    ja @@shootRandomly
-
-    push 4
-    call Random
-    cmp ax, 0
-    je @@procEnd_NoShot
+	;Shoot or not, randomly:
+	;Chance of 3/4 to shoot
+	push 4
+	call Random
+	cmp ax, 0
+	je @@procEnd
 
 @@shootRandomly:
-    sub sp, 2 ;create local variable counting fails
-    mov [word ptr bp - 2], 0
+	sub sp, 2 ;create local variable counting fails
+	;address: bp - 2
+	mov [word ptr bp - 2], 0
 
 @@getRandomInvader:
-    ; Get a random invader index (0-23)
-    push 24
-    call Random
-    mov di, ax ; DI = Invader array index (0-23)
+	;Get a random invader
+	push 24
+	call Random
+	mov si, ax
 
-    ; Check if invader 'alive' (SI holds the base address of the chosen status array):
-    mov bx, di                      ; Move DI (index) into BX (base register)
+	;Check if invader 'alive':
+	cmp [byte ptr TopInvadersStatusArray + si], 0
+	jne @@setShootingLocation
 
-    ; SI holds the starting address of the chosen array (Top/Bottom StatusArray)
-    cmp [byte ptr si + bx], 0 
-    jne @@setShootingLocation  ; Found an alive invader!
+	inc [word ptr bp - 2]
 
-    inc [word ptr bp - 2]
-    cmp [word ptr bp - 2], 4
-    jne @@getRandomInvader
-    
-    add sp, 2 ;clear local variable
-    jmp @@procEnd_NoShot
+	cmp [word ptr bp - 2], 4
+	jne @@getRandomInvader
+
+	add sp, 2 ;clear local variable
+	jmp @@procEnd
 
 
 @@setShootingLocation:
-    add sp, 2 ;clear local variable (fails)
+	add sp, 2 ;clear local variable
 
-    ; --- 3. CALCULATE Y LOCATION ---
-    mov bl, 8
-    mov ax, di ; AX = Invader array index
-    div bl
-    ; AL = line # (0-2), AH = row # (0-7)
-    push ax             ; Save row number (AH)
+	mov bl, 8
+	div bl
 
-    ; DX holds the chosen Start Line (Y). Add 15 pixels to shoot from the invader's bottom.
-    add dx, 15          
+	;al = lines, ah = rows
+	push ax
 
-    ; set correct line (AL is line number 0, 1, or 2):
-    xor ah, ah
-    mov bl, 20
-    mul bl              ; AX = vertical offset (0, 20, or 40)
+	mov dx, [TopInvadersPrintStartLine]
+	add dx, 15 ;set to buttom of first invader
 
-    add dx, ax          ; DX now holds the final Line location (Y)
-    
-    mov al, [InvadersShootingCurrentAmount]
-    xor ah, ah
-    shl ax, 1           
-    ; AX holds the calculated offset (0, 2, 4...)
-    mov bx, ax                      ; Move offset from AX into BX
+	;set correct line:
+	xor ah, ah
+	mov bl, 20
+	mul bl
 
-    mov [word ptr InvadersShootingLineLocations + bx], dx ; FIX: Specify word ptr and use BX ; Save Line location
+	add dx, ax
+	mov bl, [InvadersShootingCurrentAmount]
+	xor bh, bh
+	shl bx, 1
+	mov [InvadersShootingLineLocations + bx], dx
 
-    ; --- 4. CALCULATE X LOCATION ---
-    pop ax              ; AX holds row number (0-7) in AL (was AH)
-    shr ax, 8           ; Get row # (0-7) in AL
-    mov bl, 35
-    mul bl              ; AX = horizontal offset 
 
-    add ax, 10          ; set to middle of invader
-    add ax, bx          ; BX holds the chosen Start Row (X location)
-    
-    mov bl, [InvadersShootingCurrentAmount]
-    xor bh, bh
-    shl bx, 1           
-    mov [InvadersShootingRowLocations + bx], ax ; Save Row location
+	pop ax
+	shr ax, 8 ;rows # in al
+	mov bl, 35
+	mul bl
 
-    inc [byte ptr InvadersShootingCurrentAmount]
+	add ax, 10 ;set to middle of invader
+	add ax, [TopInvadersPrintStartRow]
 
-@@procEnd_NoShot:
+	mov bl, [InvadersShootingCurrentAmount]
+	xor bh, bh
+	shl bx, 1
+	mov [InvadersShootingRowLocations + bx], ax
+
+	inc [byte ptr InvadersShootingCurrentAmount]
+
 @@procEnd:
-    pop bp
-    ret 2
+	pop bp
+	ret
 endp InvadersRandomShot
 
+
+; -------------------------------------------------------
+; Moving invaders' shots down, checking if reached bottom
+; If reached bottom, shot is removed
+; Ben Raz
+; -------------------------------------------------------
 proc UpdateInvadersShots
 
-    push ax
-    push cx
-    push si
-    push di
-    push es
+	cmp [byte ptr InvadersShootingCurrentAmount], 0
+	je @@procEnd
 
-    cmp [byte ptr InvadersShootingCurrentAmount], 0
-    je @@procEnd ; <--- Jumps to the final label at the end
+	xor ch, ch
+	mov cl, [InvadersShootingCurrentAmount]
 
-    xor ch, ch
-    mov cl, [InvadersShootingCurrentAmount]
-
-    xor di, di ; DI will be used to index into the shot arrays (0, 2, 4, etc.)
+	xor di, di
 
 @@moveShooting:
-    
-    ; Determine direction based on shot position relative to the player (Y=90)
-    ; If Y > 90, the shot started below the player (Bottom Block) and should move UP.
-    cmp [word ptr InvadersShootingLineLocations + di], ShooterLineLocation
-    ja @@moveUp 
+	add [word ptr InvadersShootingLineLocations + di], 10
 
-    ; If Y <= 90 (Top Block), move DOWN (Original logic)
-    add [word ptr InvadersShootingLineLocations + di], 10 ; Move DOWN
-    jmp @@checkNextShot_Move
+	add di, 2
+	loop @@moveShooting
 
-@@moveUp: ; New logic for UPWARD moving shots
-    sub [word ptr InvadersShootingLineLocations + di], 10 ; Move UP
-    
-@@checkNextShot_Move:
-    add di, 2   ; Move to the next shot array index
-    loop @@moveShooting
+	;Check if oldest shot reached the bottom:
+	cmp [word ptr InvadersShootingLineLocations], StatsAreaBorderLine - 12
+	jb @@procEnd
 
-    ; --- CHECK FOR SHOTS REACHING BOUNDARIES ---
-    
-    ; 1. Check if oldest shot reached the DOWNWARD boundary (Y=175-12).
-    cmp [word ptr InvadersShootingLineLocations], StatsAreaBorderLine - 12
-    jb @@checkTopBoundary  ; If not hit, check the top boundary
+	;Remove shot:
+	mov [word ptr InvadersShootingLineLocations], 0
 
-    ; Remove shot (Downward shot hit floor):
-    mov [word ptr InvadersShootingLineLocations], 0
-    mov [word ptr InvadersShootingRowLocations], 0
-    jmp @@shiftArrayAndDecrement
+	mov [word ptr InvadersShootingRowLocations], 0
 
-@@checkTopBoundary:
-    ; 2. Check if oldest shot reached the UPWARD boundary (Y=1).
-    cmp [word ptr InvadersShootingLineLocations], 1
-    ja @@procEnd_NoRemove ; If Y > 1, it's not at the top yet.
+	;If it's the only shot, no need to move others in array:
+	cmp [byte ptr InvadersShootingCurrentAmount], 1
+	je @@decShootingsAmount
 
-    ; Remove shot (Upward shot hit ceiling):
-    mov [word ptr InvadersShootingLineLocations], 0
-    mov [word ptr InvadersShootingRowLocations], 0
-    
-@@shiftArrayAndDecrement:
-    ; If it's the only shot, no need to move others in array:
-    cmp [byte ptr InvadersShootingCurrentAmount], 1
-    je @@decShootingsAmount
+	cld
 
-    ; Shift all array elements down to fill the gap left by the removed shot (rep movsw):
-    cld
+	mov ax, ds
+	mov es, ax
 
-    mov ax, ds
-    mov es, ax
+	mov si, offset InvadersShootingLineLocations
+	mov di, si
+	add si, 2
 
-    mov si, offset InvadersShootingLineLocations
-    mov di, si
-    add si, 2  
+	mov cx, 9
+	rep movsw
 
-    mov cx, 9 
-    rep movsw
 
-    mov si, offset InvadersShootingRowLocations
-    mov di, si
-    add si, 2
+	mov si, offset InvadersShootingRowLocations
+	mov di, si
+	add si, 2
 
-    mov cx, 9
-    rep movsw
+	mov cx, 9
+	rep movsw
 
 @@decShootingsAmount:
-    dec [byte ptr InvadersShootingCurrentAmount]
+	dec [byte ptr InvadersShootingCurrentAmount]
 
-@@procEnd_NoRemove: 
+
 @@procEnd:
-    pop es
-    pop di
-    pop si
-    pop cx
-    pop ax
-    ret
+	ret
 endp UpdateInvadersShots
 
 
+; --------------------------------------------------------------------
+; Reading invaders' shots status, and printing them by saved locations
+; Ben Raz
+; --------------------------------------------------------------------
 proc PrintInvadersShots
 	cmp [byte ptr InvadersShootingCurrentAmount], 0
 	je @@procEnd
