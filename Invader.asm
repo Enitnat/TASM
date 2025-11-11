@@ -469,6 +469,12 @@ endp InvadersRandomShot
 ; -------------------------------------------------------
 proc UpdateInvadersShots
 
+    push ax
+    push cx
+    push si
+    push di
+    push es
+
 	cmp [byte ptr InvadersShootingCurrentAmount], 0
 	je @@procEnd
 
@@ -521,6 +527,11 @@ proc UpdateInvadersShots
 
 
 @@procEnd:
+    pop es
+    pop di
+    pop si
+    pop cx
+    pop ax
 	ret
 endp UpdateInvadersShots
 
@@ -530,6 +541,10 @@ endp UpdateInvadersShots
 ; Ben Raz
 ; --------------------------------------------------------------------
 proc PrintInvadersShots
+    push ax
+    push cx
+    push si
+
 	cmp [byte ptr InvadersShootingCurrentAmount], 0
 	je @@procEnd
 
@@ -557,6 +572,9 @@ proc PrintInvadersShots
 
 
 @@procEnd:
+    pop si
+    pop cx
+    pop ax
 	ret
 endp PrintInvadersShots
 
