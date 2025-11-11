@@ -47,7 +47,7 @@ include "Strings.asm"
 	TopInvadersPrintStartLine			dw	?
 	TopInvadersPrintStartRow			dw	?
 	TopInvadersLeftAmount				db	?
-	TopInvadersStatusArray				db	24 dup (?)
+	TopInvadersStatusArray				db	16 dup (?)
 
 		TopInvadersLoopMoveCounter	  	db	?
 
@@ -56,7 +56,7 @@ include "Strings.asm"
 	BottomInvadersPrintStartLine   dw  ?
 	BottomInvadersPrintStartRow    dw  ?
 	BottomInvadersLeftAmount       db  ?
-	BottomInvadersStatusArray      db  24 dup (?)
+	BottomInvadersStatusArray      db  16 dup (?)
 
 	BottomInvadersLoopMoveCounter  db  ?
 
@@ -298,24 +298,24 @@ endp MoveToStart
 ; Ben Raz
 ; ------------------------------------------------------------
 proc InitializeLevel
-	mov [TopInvadersLeftAmount], 24         
-    mov [BottomInvadersLeftAmount], 24
+	mov [TopInvadersLeftAmount], 16         
+    mov [BottomInvadersLeftAmount], 16
 
 	cmp [byte ptr Level], 1
 	jne @@checkLevelTwo
 
-	mov [byte ptr InvadersShootingMaxAmount], 3
+	mov [byte ptr InvadersShootingMaxAmount], 1
 	jmp @@resetDidNotDieBool
 
 @@checkLevelTwo:
 	cmp [byte ptr Level], 2
 	jne @@setLevelThree
 
-	mov [byte ptr InvadersShootingMaxAmount], 5
+	mov [byte ptr InvadersShootingMaxAmount], 2
 	jmp @@resetDidNotDieBool
 
 @@setLevelThree:
-	mov [byte ptr InvadersShootingMaxAmount], 7
+	mov [byte ptr InvadersShootingMaxAmount], 3
 
 @@resetDidNotDieBool:
     mov [byte ptr DidNotDieInLevelBool], 1 ;true
@@ -329,13 +329,13 @@ proc InitializeLevel
 
 	;Set all TOP invaders as 'active':
     mov di, offset TopInvadersStatusArray
-    mov cx, 24
+    mov cx, 16
     mov al, 1
     rep stosb
 
     ;Set all BOTTOM invaders as 'active':     ; <<< NEW BLOCK
     mov di, offset BottomInvadersStatusArray
-    mov cx, 24
+    mov cx, 16
     mov al, 1
     rep stosb
 
@@ -419,14 +419,6 @@ proc CheckIfTopReachedBottom
     mov cx, 8
     mov bx, 16
 
-@@checkLineTwo_T:
-    cmp [TopInvadersStatusArray + bx], 0  ; <-- RENAMED
-    jne @@lineTwoNotEmpty_T
-    inc bx
-    loop @@checkLineTwo_T
-
-    mov cx, 8
-    mov bx, 8
 
 @@checkLineOne_T:
     cmp [TopInvadersStatusArray + bx], 0  ; <-- RENAMED
@@ -445,11 +437,6 @@ proc CheckIfTopReachedBottom
 
     jmp @@invadersDidNotReachBottom_T
 
-@@lineTwoNotEmpty_T:
-    ; New Death Line Check: If the lowest line (2) is present, check if its start line is too low (i.e., Y > 50).
-    cmp [word ptr TopInvadersPrintStartLine], ShooterLineLocation - 40 ; <-- NEW OFFSET: Check if Y > 50 (90 - 40 = 50)
-    ja @@invadersReachedBottom_T
-    jmp @@invadersDidNotReachBottom_T
 
 @@lineOneNotEmpty_T:
     ; New Death Line Check: If middle line (1) is present, check if Y > 70.
@@ -476,14 +463,6 @@ proc CheckIfBottomReachedBottom
     mov cx, 8
     mov bx, 16
 
-@@checkLineTwo_B:
-    cmp [BottomInvadersStatusArray + bx], 0  ; <-- USES BOTTOM VARS
-    jne @@lineTwoNotEmpty_B
-    inc bx
-    loop @@checkLineTwo_B
-
-    mov cx, 8
-    mov bx, 8
 
 @@checkLineOne_B:
     cmp [BottomInvadersStatusArray + bx], 0  ; <-- USES BOTTOM VARS
@@ -502,13 +481,6 @@ proc CheckIfBottomReachedBottom
 
     jmp @@invadersDidNotReachBottom_B
 
-@@lineTwoNotEmpty_B:
-    ; Lowest visible line of bottom block (line 2)
-    ; Bottom block moves upward (Y decreases)
-    ; Lose if it passes ShooterLineLocation + 30
-    cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 30
-    jb @@invadersReachedBottom_B
-    jmp @@invadersDidNotReachBottom_B
 
 @@lineOneNotEmpty_B:
     cmp [word ptr BottomInvadersPrintStartLine], ShooterLineLocation + 20

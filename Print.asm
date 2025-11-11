@@ -9,13 +9,20 @@ proc PrintFullScreenBMP
 	push bp ;Preserve bp's value
 	mov bp, sp ;Use bp as a not-changing memory pointer for using pushed values before call
 
+	push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
+
 ; -----------------------------------------------------
 ; Stack State:
 ; | bp | bp + 2 |          bp + 4        |   bp + 6   |
 ; | bp |   sp   | transfer space address | FileHandle |
 ; -----------------------------------------------------
 
-	;Set file pointer to start of data:
 	xor al, al ;Set file pointer in offset beggining start
 	mov bx, [bp + 6] ;Hold FileHandle in bx
 	xor cx, cx
@@ -60,7 +67,16 @@ proc PrintFullScreenBMP
 	pop cx ;get lines left number
 	loop @@readLine
 
+	
+
 @@procEnd:
+	pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
 	pop bp ;pop bp's value back + Clear the stack from pushed values
 	ret 4 ;End proc + Clear the stack from pushed values
 endp PrintFullScreenBMP
@@ -75,6 +91,14 @@ endp PrintFullScreenBMP
 proc PrintBMP
 	push bp ;Preserve bp's value
 	mov bp, sp ;Use bp as a not-changing memory pointer for using pushed values before call
+
+	push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push es
 
 ; ----------------------------------------------------------------------------------------------
 ; Stack State:
@@ -150,7 +174,7 @@ proc PrintBMP
 	
 @@checkBackground:
 	;check if current pixel is black. If it is, skipping. If not, print it:
-	cmp [byte ptr si], BlackColor
+	cmp [byte ptr si], 0
 	je @@skipPixel
 
 	movsb
@@ -170,11 +194,24 @@ proc PrintBMP
 	loop @@readLine
 
 @@procEnd:
-	pop bp ;pop bp's value back + Clear the stack from pushed values
-	ret 12 ;End proc + Clear the stack from pushed values
+	pop es
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+	pop bp 
+	ret 12 
 endp PrintBMP
 
 
+;Black = 0, Red = 40, Blue = 54, White = 255
+; ---------------------------------------------------------------------
+; Get length and height, destLine, destRow and color # from stack
+; Print the color with the input location and dimensions.
+; Ben Raz
+; ---------------------------------------------------------------------
 ;Black = 0, Red = 40, Blue = 54, White = 255
 ; ---------------------------------------------------------------------
 ; Get length and height, destLine, destRow and color # from stack
@@ -185,10 +222,16 @@ proc PrintColor
 	push bp
 	mov bp, sp
 
+	push ax
+    push bx
+    push cx
+    push di
+    push es
+
 ; ------------------------------------------------------------------
 ; Stack State:
-; | bp | bp + 2 |  bp + 4 | bp + 6  |  bp + 8  | bp + 10 | bp + 12 |
-; | bp |   sp   | color # | destRow | destLine |  height |  length |
+; | bp | bp + 2 |  bp + 4 | bp + 6  |  bp + 8  | bp + 10 | bp + 12 |
+; | bp |   sp   | color # | destRow | destLine |  height |  length |
 ; ------------------------------------------------------------------
 
 	mov ax, 0A000h
@@ -217,12 +260,17 @@ proc PrintColor
 	inc di
 	loop @@movePixel
 
-	;Goto start of next line:
 	sub di, [bp + 12]
 	add di, 320
 
 	pop cx
 	loop @@printLine
+
+	pop es
+    pop di
+    pop cx
+    pop bx
+    pop ax
 
 	pop bp
 	ret 10
