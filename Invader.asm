@@ -116,7 +116,7 @@ proc PrintBottomInvaders
     pop cx
 
 
-    add [word ptr bp - 4], 36 
+    sub [word ptr bp - 4], 36 
 
     loop @@printInvader_B 
 
@@ -228,32 +228,50 @@ proc ClearBottomInvaders
     mov ax, [BottomInvadersPrintStartRow] 
     mov [bp - 4], ax
 
+
     mov cx, 8
 @@printInvader_CB: 
     push cx
 
     push bx
 
-    cmp [byte ptr BottomInvadersStatusArray + bx], 1 
-    jne @@skipInvader_CB
+    ; --- FIX 1: "DON'T DIE" BUG ---
+    ; The check for "alive" status is removed.
+    ; We will now erase all 8 invader slots every frame.
+    ; "Dead" invaders will be erased one last time.
+    ; cmp [byte ptr BottomInvadersStatusArray + bx], 1 
+    ; jne @@skipInvader_CB
 
-    
-    ; *** START OF FIX ***
-    
-    ; 1. Fix smearing: Use the correct 32x32 size
-    push InvaderHeight ; (push 32)
-    push InvaderLength ; (push 32)
 
-    ; 2. Fix crash: Use the exact coordinates, don't subtract
+    ; --- FIX 2: SMEARING BUG ---
+    ; Use the correct 32x32 size from your variables,
+    ; not the hardcoded 30x24.
+    push InvaderHeight  ; (32)
+    push InvaderLength  ; (32)
+
+    ; --- FIX 3: CRASH BUG (PLAYER DISAPPEARING) ---
+    ; We keep your 'sub ax, 4' offset (which prevents
+    ; smearing) but add a safety check to prevent it
+    ; from ever going below zero and crashing the game.
+    
+    ; Handle Y-coordinate
     mov ax, [bp - 2]
+    cmp ax, 4       ; Check if Y is 4 or less
+    jle @@Y_is_safe ; If so, just push it
+    sub ax, 4       ; Otherwise, subtract 4
+@@Y_is_safe:
     push ax
+
+    ; Handle X-coordinate
     mov ax, [bp - 4]
+    cmp ax, 4       ; Check if X is 4 or less
+    jle @@X_is_safe ; If so, just push it
+    sub ax, 4       ; Otherwise, subtract 4
+@@X_is_safe:
     push ax
     
     push BlackColor
     call PrintColor
-    
-    ; *** END OF FIX ***
 
 @@skipInvader_CB: 
     pop bx
@@ -261,7 +279,8 @@ proc ClearBottomInvaders
 
     pop cx
 
-    add [word ptr bp - 4], 36 
+    ; This should match your Print proc (you had 'add' here)
+    sub [word ptr bp - 4], 36 
 
     loop @@printInvader_CB 
 
@@ -371,8 +390,9 @@ proc CheckAndMoveBottomInvaders
 
     ;Move:
     call ClearBottomInvaders
-    call PrintBottomInvaders
     call UpdateBottomInvadersLocation
+    call PrintBottomInvaders
+
     mov [byte ptr BottomInvadersLoopMoveCounter], 0 
     jmp @@procEnd_B 
 
