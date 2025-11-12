@@ -262,9 +262,9 @@ proc MoveToStart
     mov [byte ptr BottomInvadersMovesToSideDone], 0
     mov [byte ptr BottomInvadersLoopMoveCounter], 0
     mov [word ptr BottomInvadersPrintStartLine], 140   ; Start at line 100
-    mov [word ptr BottomInvadersPrintStartRow], 280  ; Start on the right side
+    mov [word ptr BottomInvadersPrintStartRow], 280  
 	
-	mov [word ptr ShooterRowLocation], 152 ; <-- This value centers the player horizontally
+	mov [word ptr ShooterRowLocation], 152 
     mov [byte ptr PlayerShootingExists], 0
 
 	mov [word ptr ShooterLineLocation], 90

@@ -116,7 +116,7 @@ proc PrintBottomInvaders
     pop cx
 
 
-    sub [word ptr bp - 4], 36 
+    add [word ptr bp - 4], 36 
 
     loop @@printInvader_B 
 
@@ -228,7 +228,6 @@ proc ClearBottomInvaders
     mov ax, [BottomInvadersPrintStartRow] 
     mov [bp - 4], ax
 
-
     mov cx, 8
 @@printInvader_CB: 
     push cx
@@ -239,23 +238,28 @@ proc ClearBottomInvaders
     jne @@skipInvader_CB
 
     
-    push 30
-    push 24
+    ; *** START OF FIX ***
+    
+    ; 1. Fix smearing: Use the correct 32x32 size
+    push InvaderHeight ; (push 32)
+    push InvaderLength ; (push 32)
+
+    ; 2. Fix crash: Use the exact coordinates, don't subtract
     mov ax, [bp - 2]
-    sub ax, 4
     push ax
     mov ax, [bp - 4]
-    sub ax, 4
     push ax
+    
     push BlackColor
     call PrintColor
+    
+    ; *** END OF FIX ***
 
 @@skipInvader_CB: 
     pop bx
     inc bx
 
     pop cx
-
 
     add [word ptr bp - 4], 36 
 
@@ -309,28 +313,32 @@ endp UpdateTopInvadersLocation
 
 proc UpdateBottomInvadersLocation
     cmp [byte ptr BottomInvadersMovesToSideDone], 8   
-    je @@reverseDirectionGoDown_B 
-
+    je @@reverseDirectionGoUp_B ; Renamed label for clarity
 
     inc [byte ptr BottomInvadersMovesToSideDone]   
-
 
     cmp [byte ptr BottomInvadersMoveRightBool], 1 
     je @@moveRight_B 
 
-
-    sub [word ptr BottomInvadersPrintStartRow], 4  
+    sub [word ptr BottomInvadersPrintStartRow], 4   
     jmp @@procEnd_B 
-
 
 @@moveRight_B: 
     add [word ptr BottomInvadersPrintStartRow], 4 
     jmp @@procEnd_B 
 
-@@reverseDirectionGoDown_B: 
-    xor [byte ptr BottomInvadersMoveRightBool], 1  
-    mov [byte ptr BottomInvadersMovesToSideDone], 0  
-    sub [word ptr BottomInvadersPrintStartLine], 4 
+@@reverseDirectionGoUp_B: 
+    xor [byte ptr BottomInvadersMoveRightBool], 1   
+    mov [byte ptr BottomInvadersMovesToSideDone], 0   
+    
+    ; *** START OF FIX ***
+    ; Add a safety check before moving up
+    mov ax, [word ptr BottomInvadersPrintStartLine]
+    cmp ax, 4       ; Check if Y is at 4 (or less)
+    jle @@procEnd_B ; If it is, DON'T subtract. Just end.
+    
+    sub [word ptr BottomInvadersPrintStartLine], 4 ; Move up
+    ; *** END OF FIX ***
     
 @@procEnd_B: 
     ret
@@ -380,13 +388,11 @@ proc InvadersRandomShot
     push bp
     mov bp, sp
 
-    ; --- SAVE ALL WORKING REGISTERS (FIXES RENDERING) ---
     push ax
     push bx
     push cx
     push dx
     push si
-    ; ---------------------------------------------------
 
     ;Check if max reached:
     mov al, [InvadersShootingCurrentAmount]
@@ -610,12 +616,8 @@ proc PrintInvadersShots
 endp PrintInvadersShots
 
 
-; --------------------------------------------------
-; Replacing printed invaders' shots with black color
-; (before printing at updated locations)
-; Ben Raz
-; --------------------------------------------------
 proc ClearInvadersShots
+
 	xor si, si
 	
 	xor ch, ch
@@ -646,11 +648,6 @@ proc ClearInvadersShots
 endp ClearInvadersShots
 
 
-; ------------------------------------------------
-; Checks if an invader was hi by player's shot
-; If true, invader is marked as 'dead' and removed
-; Ben Raz
-; ------------------------------------------------
 proc CheckAndKillTopInvader
 
     push ax
