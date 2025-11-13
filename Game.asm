@@ -333,7 +333,6 @@ proc InitializeLevel
     mov al, 1
     rep stosb
 
-    ;Set all BOTTOM invaders as 'active':     ; <<< NEW BLOCK
     mov di, offset BottomInvadersStatusArray
     mov cx, 8
     mov al, 1
@@ -599,9 +598,10 @@ proc PlayGame
 	call PrintColor
 
 	add [word ptr ShooterRowLocation], 10
+	jmp @@printAgain
 
 @@checkUp: ; <--- NEW LABEL
-    cmp ah, 48h  ; Up Key (Scancode 48h)
+    cmp ah, 48h  
     jne @@checkDown
 
     mov [byte ptr PlayerDirection], 1 

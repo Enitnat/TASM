@@ -87,19 +87,20 @@ proc PrintBottomInvaders
 @@printInvadersLine_B: 
     push cx
 
+    ; --- FIX: CALCULATE LEFT EDGE ---
+    ; StartRow is the Rightmost position. 
+    ; We subtract 252 (36 * 7) to find the Leftmost position.
     mov ax, [BottomInvadersPrintStartRow] 
+    sub ax, 252    
     mov [bp - 4], ax
-
 
     mov cx, 8
 @@printInvader_B: 
     push cx
-
     push bx
 
     cmp [byte ptr BottomInvadersStatusArray + bx], 1 
     jne @@skipInvader_B 
-
     
     push [word ptr InvaderFileHandle]
     push InvaderLength
@@ -112,11 +113,10 @@ proc PrintBottomInvaders
 @@skipInvader_B: 
     pop bx
     inc bx
-
     pop cx
 
-
-    sub [word ptr bp - 4], 36 
+    ; --- FIX: MOVE RIGHT (Standard L->R) ---
+    add [word ptr bp - 4], 36 
 
     loop @@printInvader_B 
 
@@ -125,11 +125,9 @@ proc PrintBottomInvaders
     loop @@printInvadersLine_B 
 
     add sp, 4
-
     pop cx
     pop bx
     pop ax
-
     pop bp
     ret
 endp PrintBottomInvaders
@@ -209,7 +207,6 @@ endp ClearTopInvaders
 proc ClearBottomInvaders
     push bp
     mov bp, sp
-
     sub sp, 4
 
     push ax
@@ -225,48 +222,34 @@ proc ClearBottomInvaders
 @@printInvadersLine_CB:
     push cx
 
+    ; --- FIX: CALCULATE LEFT EDGE ---
     mov ax, [BottomInvadersPrintStartRow] 
+    sub ax, 252
     mov [bp - 4], ax
-
 
     mov cx, 8
 @@printInvader_CB: 
     push cx
-
     push bx
 
-    ; --- FIX 1: "DON'T DIE" BUG ---
-    ; The check for "alive" status is removed.
-    ; We will now erase all 8 invader slots every frame.
-    ; "Dead" invaders will be erased one last time.
-    ; cmp [byte ptr BottomInvadersStatusArray + bx], 1 
-    ; jne @@skipInvader_CB
-
-
-    ; --- FIX 2: SMEARING BUG ---
-    ; Use the correct 32x32 size from your variables,
-    ; not the hardcoded 30x24.
-    push InvaderHeight  ; (32)
-    push InvaderLength  ; (32)
-
-    ; --- FIX 3: CRASH BUG (PLAYER DISAPPEARING) ---
-    ; We keep your 'sub ax, 4' offset (which prevents
-    ; smearing) but add a safety check to prevent it
-    ; from ever going below zero and crashing the game.
+    ; (Status check removed to fix "Don't Die" bug)
     
-    ; Handle Y-coordinate
+    push InvaderHeight ; 32
+    push InvaderLength ; 32
+
+    ; Handle Y-coordinate (Crash safety)
     mov ax, [bp - 2]
-    cmp ax, 4       ; Check if Y is 4 or less
-    jle @@Y_is_safe ; If so, just push it
-    sub ax, 4       ; Otherwise, subtract 4
+    cmp ax, 4
+    jle @@Y_is_safe
+    sub ax, 4
 @@Y_is_safe:
     push ax
 
-    ; Handle X-coordinate
+    ; Handle X-coordinate (Crash safety)
     mov ax, [bp - 4]
-    cmp ax, 4       ; Check if X is 4 or less
-    jle @@X_is_safe ; If so, just push it
-    sub ax, 4       ; Otherwise, subtract 4
+    cmp ax, 4
+    jle @@X_is_safe
+    sub ax, 4
 @@X_is_safe:
     push ax
     
@@ -276,25 +259,21 @@ proc ClearBottomInvaders
 @@skipInvader_CB: 
     pop bx
     inc bx
-
     pop cx
 
-    ; This should match your Print proc (you had 'add' here)
-    sub [word ptr bp - 4], 36 
+    ; --- FIX: MOVE RIGHT (Standard L->R) ---
+    add [word ptr bp - 4], 36 
 
     loop @@printInvader_CB 
 
     add [word ptr bp - 2], 20 
-
     pop cx
     loop @@printInvadersLine_CB 
 
     add sp, 4
-
     pop cx
     pop bx
     pop ax
-
     pop bp
     ret
 endp ClearBottomInvaders
@@ -876,7 +855,7 @@ proc CheckAndKillBottomInvader
     push cx
     push dx
 
-    ;Check if invader killed:
+    ; --- 1. CHECK FOR HIT (UNCHANGED) ---
     ;Check above:
     mov ah, 0Dh
     mov dx, [PlayerShootingLineLocation]
@@ -884,9 +863,8 @@ proc CheckAndKillBottomInvader
     mov cx, [PlayerShootingRowLocation]
     mov bh, 0
     int 10h
-
     cmp al, GreenColor
-    je @@killInvader_B ; Renamed label
+    je @@killInvader_B 
 
     ;Check below:
     mov ah, 0Dh
@@ -895,9 +873,8 @@ proc CheckAndKillBottomInvader
     mov cx, [PlayerShootingRowLocation]
     mov bh, 0
     int 10h
-
     cmp al, GreenColor
-    je @@killInvader_B ; Renamed label
+    je @@killInvader_B 
 
     mov ah, 0Dh
     mov dx, [PlayerShootingLineLocation]
@@ -905,9 +882,8 @@ proc CheckAndKillBottomInvader
     mov cx, [PlayerShootingRowLocation]
     mov bh, 0
     int 10h
-
     cmp al, GreenColor
-    je @@killInvader_B ; Renamed label
+    je @@killInvader_B 
 
     ;Check from left
     mov ah, 0Dh
@@ -916,9 +892,8 @@ proc CheckAndKillBottomInvader
     dec cx
     mov bh, 0
     int 10h
-
     cmp al, GreenColor
-    je @@killInvader_B ; Renamed label
+    je @@killInvader_B 
 
     ;Check from right
     mov ah, 0Dh
@@ -927,144 +902,108 @@ proc CheckAndKillBottomInvader
     add cx, 2
     mov bh, 0
     int 10h
-
     cmp al, GreenColor
-    je @@killInvader_B ; Renamed label
+    je @@killInvader_B 
 
-    jmp @@procEnd_B ; Renamed label
+    jmp @@procEnd_B 
 
 
-@@killInvader_B: ; Renamed label
-    ;set cursor to top left
+@@killInvader_B: 
+    ; Hide the hit pixel
     xor bh, bh
     xor dx, dx
     mov ah, 2
     int 10h
 
-    mov ax, [PlayerShootingLineLocation]
-    sub ax, [BottomInvadersPrintStartLine] ; <-- USES BOTTOM VARS
+    ; --- 2. FIND WHICH INVADER WAS HIT ---
+    
+    ; Start scanning at the LEFT edge (StartRow - 252)
+    mov dx, [BottomInvadersPrintStartRow]
+    sub dx, 252   
+    
+    xor cx, cx    ; Index 0 (Leftmost)
+    mov ax, [PlayerShootingRowLocation] ; Bullet X
 
-    cmp ax, 22
-    jb @@killedInLine0_B ; Renamed label
-
-    cmp ax, 0FFE0h
-    ja @@killedInLine0_B ; Renamed label
-
-    cmp ax, 42
-    jb @@killedInLine1_B ; Renamed label
-
-    push 2
-    jmp @@checkKilledRow_B ; Renamed label
-
-@@killedInLine0_B: ; Renamed label
-    push 0
-    jmp @@checkKilledRow_B ; Renamed label
-
-@@killedInLine1_B: ; Renamed label
-    push 1
-
-@@checkKilledRow_B: ; Renamed label
-    cmp [byte ptr DebugBool], 1
-    jne @@skipLineDebugPrint_B ; Renamed label
-
-; Print hit debug info (if used debug flag):
-    mov ah, 2
-    xor bh, bh
-    xor dx, dx
-    int 10h
-
-    mov dl, 'L'
-    int 21h
-
-    pop dx
+@@scanLoop_B:
+    ; Check if Bullet is inside current invader [dx ... dx+32]
+    
+    cmp ax, dx          
+    jb @@nextInvader_B  
+    
     push dx
-    add dl, 30h
-    mov ah, 2
-    int 21h
-
-@@skipLineDebugPrint_B: ; Renamed label
-    mov ax, [PlayerShootingRowLocation]
-    sub ax, [BottomInvadersPrintStartRow] ; <-- USES BOTTOM VARS
-    add ax, 2
-
-    ;In some rare cases startRow is bigger than shootingRow, check:
-    cmp ax, 0FFE0h
-    jb @@setForRowFind_B ; Renamed label
-
-    xor cx, cx
-    jmp @@rowFound_B ; Renamed label
-
-@@setForRowFind_B: ; Renamed label
-    xor cx, cx ;row counter
-    mov dx, 28
-@@checkRow_B: ; Renamed label
+    add dx, 32          
     cmp ax, dx
-    jb @@rowFound_B ; Renamed label
+    pop dx
+    ja @@nextInvader_B  
 
-    add dx, 36
-    inc cx
-    jmp @@checkRow_B ; Renamed label
+    ; IF WE ARE HERE, IT'S A MATCH!
+    jmp @@invaderFound_B
 
-@@rowFound_B: ; Renamed label
-    cmp [byte ptr DebugBool], 1
-    jne @@skipRowDebugPrint_B ; Renamed label
+@@nextInvader_B:
+    add dx, 36     ; Move X to the RIGHT
+    inc cx         ; Next Index (0 -> 1 -> 2...)
+    
+    cmp cx, 8
+    jb @@scanLoop_B 
 
-    mov ah, 2
-    mov dl, 'R'
-    int 21h
+    jmp @@procEnd_B
 
-    mov dx, cx
-    add dl, 30h
-    int 21h
+@@invaderFound_B:
 
-@@skipRowDebugPrint_B: ; Renamed label
-    pop bx
-    ;bx holding line, cx holding row
+    ; --- 3. KILL THE INVADER ---
+    
+    mov bx, cx
+    push bx ; Save index
 
-    shl bx, 3 ;multiply by 8
-    add bx, cx
-
-    push bx
-
-    mov [byte ptr BottomInvadersStatusArray + bx], 0 ; <-- USES BOTTOM VARS
-    dec [byte ptr BottomInvadersLeftAmount]        ; <-- USES BOTTOM VARS
+    mov [byte ptr BottomInvadersStatusArray + bx], 0 
+    dec [byte ptr BottomInvadersLeftAmount]        
 
     mov [byte ptr PlayerShootingExists], 0
     mov [word ptr PlayerShootingLineLocation], 0
     mov [word ptr PlayerShootingRowLocation], 0
 
-    ;Increase and update score:
     inc [byte ptr Score]
     call UpdateScoreStat
 
-    pop ax
-    ;clear killed invader print
-    mov bl, 8
-    div bl
+    ; --- 4. CLEAR THE SPECIFIC INVADER ---
+    pop ax ; Restore Index
+    
+    ; Calculate the X position using Left-to-Right math
+    ; X = (StartRow - 252) + (Index * 36)
+    
     push ax
-    xor ah, ah
-    mov bl, 20
-    mul bl
-
-    mov dx, ax
-    add dx, [BottomInvadersPrintStartLine] ; <-- USES BOTTOM VARS
-    sub dx, 4
-
-    pop ax
-    shr ax, 8
     mov bl, 36
-    mul bl
-    add ax, [BottomInvadersPrintStartRow] ; <-- USES BOTTOM VARS
+    mul bl      ; AX = Index * 36
+    
+    mov bx, [BottomInvadersPrintStartRow]
+    sub bx, 252 ; BX = Left Start
+    add ax, bx  ; AX = Correct X coordinate
+    
+    ; Standard Clear Logic
+    mov dx, [BottomInvadersPrintStartLine]
+    sub dx, 4
+    push dx ; Y
+    
     sub ax, 4
+    push ax ; X
 
-    push 36
-    push 24
-    push dx
-    push ax
+    push 36 ; Width
+    push 24 ; Height
+    
+    ; Fix Stack Order for PrintColor (Width, Height, Y, X, Color)
+    pop bx ; Height
+    pop si ; Width
+    pop ax ; X
+    pop dx ; Y
+    
+    push si ; 36
+    push bx ; 24
+    push dx ; Y
+    push ax ; X
     push BlackColor
     call PrintColor
 
-@@procEnd_B: ; Renamed label
+@@procEnd_B: 
     pop dx
     pop cx
     pop bx
